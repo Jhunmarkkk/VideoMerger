@@ -505,10 +505,7 @@
       await ffmpeg.writeFile("list.txt", listContent);
 
       // Track ffmpeg progress
-      ffmpeg.on("progress", ({ progress }) => {
-        const pct = 30 + Math.min(progress, 1) * 65;
-        setProgress(pct, "Merging videos…");
-      });
+      ffmpeg.on("progress", ({ progress }) => { if (progress > 0 && progress <= 1) { setProgress(30 + progress * 65, "Merging videos\u2026"); } });
 
       setProgress(30, "Merging videos…");
 
