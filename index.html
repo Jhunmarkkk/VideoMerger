@@ -129,8 +129,11 @@
 
   // --- FFmpeg 0.11.x setup (works on iPhone 6 Safari) ---
   const { createFFmpeg, fetchFile } = FFmpeg;
+  const ffmpegCoreBase = window.location.origin + '/ffmpeg-core/';
   const ffmpeg = createFFmpeg({
-    corePath: window.location.origin + '/ffmpeg-core/ffmpeg-core.js?v=20260517-ffmpeg-loader-fix',
+    corePath: ffmpegCoreBase + 'ffmpeg-core.js?v=20260517-ffmpeg-loader-fix-2',
+    wasmPath: ffmpegCoreBase + 'ffmpeg-core.wasm?v=20260517-ffmpeg-loader-fix-2',
+    workerPath: ffmpegCoreBase + 'ffmpeg-core.worker.js?v=20260517-ffmpeg-loader-fix-2',
     log: true,
   });
 
@@ -160,6 +163,18 @@
     mergeProgressText.textContent = text;
   }
 
+  async function logFFmpegAssetStatus() {
+    var wasmUrl = ffmpegCoreBase + 'ffmpeg-core.wasm?v=20260517-ffmpeg-loader-fix-2';
+    try {
+      var response = await fetch(wasmUrl, { cache: "no-store" });
+      console.error("FFmpeg WASM fetch status:", response.status, response.headers.get("content-type"), wasmUrl);
+      var firstBytes = Array.from(new Uint8Array(await response.clone().arrayBuffer()).slice(0, 4));
+      console.error("FFmpeg WASM first bytes:", firstBytes);
+    } catch (assetError) {
+      console.error("FFmpeg WASM diagnostic failed:", assetError);
+    }
+  }
+
   async function loadFFmpeg() {
     if (ffmpegLoaded) return;
     setStatus("Loading FFmpeg engine...");
@@ -169,6 +184,7 @@
       setStatus("");
     } catch(e) {
       console.error("FFmpeg load error:", e);
+      logFFmpegAssetStatus();
       throw e;
     }
   }
