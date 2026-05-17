@@ -281,6 +281,7 @@
     <div class="hero-badge">✦ 100% Free &nbsp;·&nbsp; No Watermark &nbsp;·&nbsp; iPhone Ready</div>
     <h1>🎬 Video Merger</h1>
     <p class="subtitle">Merge up to 100 videos — free, fast &amp; iPhone 6 compatible</p>
+    <p id="engineStatus" style="font-size:0.75rem;color:#0077aa;margin-top:8px;">⏳ Loading FFmpeg engine in background…</p>
   </div>
 
   <div class="upload-zone" id="uploadZone">
@@ -391,7 +392,14 @@
   }
 
   // Load FFmpeg on page load in background
-  loadFFmpeg().catch(() => {});
+  loadFFmpeg().then(() => {
+    const el = document.getElementById("engineStatus");
+    if (el) el.textContent = "✅ FFmpeg engine ready!";
+    setTimeout(() => { if (el) el.style.display = "none"; }, 3000);
+  }).catch(() => {
+    const el = document.getElementById("engineStatus");
+    if (el) el.textContent = "⚠️ FFmpeg failed to load. Try refreshing.";
+  });
 
   // --- File Selection ---
   fileInput.addEventListener("change", () => handleFiles(Array.from(fileInput.files)));
