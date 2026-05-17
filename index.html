@@ -131,7 +131,7 @@
   const { createFFmpeg, fetchFile } = FFmpeg;
   const ffmpeg = createFFmpeg({
     corePath: window.location.origin + '/ffmpeg-core/ffmpeg-core.js',
-    log: false,
+    log: true,
   });
 
   let files = [];
@@ -163,9 +163,14 @@
   async function loadFFmpeg() {
     if (ffmpegLoaded) return;
     setStatus("Loading FFmpeg engine...");
-    await ffmpeg.load();
-    ffmpegLoaded = true;
-    setStatus("");
+    try {
+      await ffmpeg.load();
+      ffmpegLoaded = true;
+      setStatus("");
+    } catch(e) {
+      console.error("FFmpeg load error:", e);
+      throw e;
+    }
   }
 
   loadFFmpeg().then(() => {
