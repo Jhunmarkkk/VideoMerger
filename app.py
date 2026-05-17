@@ -17,6 +17,7 @@ for folder in [UPLOAD_FOLDER, OUTPUT_FOLDER, THUMB_FOLDER]:
     os.makedirs(folder, exist_ok=True)
 
 FFMPEG = os.environ.get("FFMPEG_PATH") or shutil.which("ffmpeg") or "ffmpeg"
+print(f"FFmpeg path: {FFMPEG}", flush=True)
 
 MAX_FILES = 100
 
