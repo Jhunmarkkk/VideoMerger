@@ -1,9 +1,0 @@
-services:
-  - type: web
-    name: video-merger
-    runtime: python
-    buildCommand: "./build.sh"
-    startCommand: python app.py
-    envVars:
-      - key: FFMPEG_PATH
-        value: ffmpeg
