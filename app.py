@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 import uuid
 from flask import Flask, request, jsonify, send_file, after_this_request, send_from_directory
@@ -15,7 +16,7 @@ THUMB_FOLDER = "thumbnails"
 for folder in [UPLOAD_FOLDER, OUTPUT_FOLDER, THUMB_FOLDER]:
     os.makedirs(folder, exist_ok=True)
 
-FFMPEG = os.environ.get("FFMPEG_PATH", "ffmpeg")
+FFMPEG = os.environ.get("FFMPEG_PATH") or shutil.which("ffmpeg") or "ffmpeg"
 
 MAX_FILES = 100
 
