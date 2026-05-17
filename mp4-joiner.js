@@ -280,6 +280,7 @@
       handler: readHandler(bytes, trak),
       mdhd: findPath(bytes, trak, ["mdia", "mdhd"]),
       tkhd: findChild(bytes, trak, "tkhd"),
+      edts: findChild(bytes, trak, "edts"),
       stbl: stbl,
       sttsBox: stts,
       cttsBox: findChild(bytes, stbl, "ctts"),
@@ -328,11 +329,19 @@
 
   function compatible(files) {
     var base = files[0];
+    base.tracks.forEach(function (track) {
+      if (track.edts) {
+        err("These iPhone MOV files use edit lists, which this lightweight browser joiner cannot safely merge into a playable file.");
+      }
+    });
     files.slice(1).forEach(function (file) {
       if (file.tracks.length !== base.tracks.length) err(file.name + " has a different track count.");
       file.tracks.forEach(function (track, index) {
         var other = base.tracks[index];
         if (track.handler !== other.handler) err(file.name + " has tracks in a different order.");
+        if (track.edts || other.edts) {
+          err(file.name + " uses iPhone MOV edit lists, which this lightweight browser joiner cannot safely merge into a playable file.");
+        }
       });
     });
   }
