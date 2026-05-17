@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Flask upload/output folders
+uploads/
+outputs/
+thumbnails/
+
+# FFmpeg source (not needed, use the binary)
+ffmpeg-8.1.1/
+
+# Environment
+.env
+venv/

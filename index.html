@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video Merger</title>
+  <script src="/neat.umd.js"></script>
+  <script>const NeatGradient = window.neat.NeatGradient;</script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #1a1a2e;
+      overflow-x: hidden;
+    }
+
+    #gradient {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 40px 20px 60px;
+    }
+
+    .hero {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: rgba(0,153,187,0.12);
+      border: 1px solid rgba(0,153,187,0.3);
+      color: #006688;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 4px 14px;
+      border-radius: 99px;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      font-size: 2.8rem;
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1.1;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #003d55 0%, #0099bb 50%, #2E7075 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 2px 8px rgba(0,153,187,0.18));
+    }
+
+    .subtitle {
+      font-size: 0.95rem;
+      color: #446;
+      letter-spacing: 0.2px;
+    }
+
+    .upload-zone {
+      border: 2px dashed rgba(0,0,0,0.2);
+      border-radius: 16px;
+      padding: 36px 20px;
+      text-align: center;
+      background: rgba(255,255,255,0.45);
+      backdrop-filter: blur(12px);
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: #0099bb;
+      background: rgba(0,153,187,0.08);
+    }
+
+    .upload-zone p { color: #444; font-size: 0.95rem; }
+    .upload-zone span { color: #0077aa; font-weight: 600; cursor: pointer; }
+
+    #fileInput { display: none; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 28px;
+      border-radius: 14px;
+      border: none;
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0);
+      transition: background 0.2s;
+    }
+
+    .btn:hover::after { background: rgba(255,255,255,0.12); }
+    .btn:active { transform: scale(0.96); }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+    .btn:disabled::after { display: none; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #00b4d8, #0077aa);
+      color: #fff;
+      box-shadow: 0 4px 18px rgba(0,153,187,0.35), inset 0 1px 0 rgba(255,255,255,0.2);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      box-shadow: 0 6px 24px rgba(0,153,187,0.45), inset 0 1px 0 rgba(255,255,255,0.2);
+      transform: translateY(-1px);
+    }
+
+    .btn-merge {
+      background: linear-gradient(135deg, #f7971e, #e05c00);
+      color: #fff;
+      box-shadow: 0 4px 18px rgba(224,92,0,0.35), inset 0 1px 0 rgba(255,255,255,0.2);
+    }
+
+    .btn-merge:hover:not(:disabled) {
+      box-shadow: 0 6px 24px rgba(224,92,0,0.45), inset 0 1px 0 rgba(255,255,255,0.2);
+      transform: translateY(-1px);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #11998e, #38ef7d);
+      color: #fff;
+      box-shadow: 0 4px 18px rgba(17,153,142,0.35), inset 0 1px 0 rgba(255,255,255,0.2);
+    }
+
+    .btn-success:hover:not(:disabled) {
+      box-shadow: 0 6px 24px rgba(17,153,142,0.45), inset 0 1px 0 rgba(255,255,255,0.2);
+      transform: translateY(-1px);
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin: 24px 0 16px;
+      flex-wrap: wrap;
+    }
+
+    #status {
+      text-align: center;
+      font-size: 0.88rem;
+      color: #555;
+      min-height: 20px;
+      margin-bottom: 8px;
+    }
+
+    #status.error { color: #cc2200; }
+    #status.success { color: #007755; }
+
+    .progress-wrap {
+      display: none;
+      background: rgba(255,255,255,0.5);
+      backdrop-filter: blur(8px);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+    }
+
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: #333;
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      background: rgba(0,0,0,0.1);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, #0099bb, #006688);
+      transition: width 0.35s ease;
+    }
+
+    .video-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 14px;
+      margin-top: 8px;
+    }
+
+    .video-card {
+      background: rgba(255,255,255,0.55);
+      backdrop-filter: blur(8px);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid transparent;
+      cursor: grab;
+      transition: border-color 0.2s, transform 0.15s;
+      user-select: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .video-card:active { cursor: grabbing; }
+    .video-card.dragging { opacity: 0.4; transform: scale(0.97); }
+    .video-card.drag-target { border-color: #0099bb; }
+
+    .video-card img {
+      width: 100%;
+      aspect-ratio: 16/9;
+      object-fit: cover;
+      display: block;
+      background: #ddd;
+    }
+
+    .video-card .info { padding: 8px 10px; }
+
+    .video-card .name {
+      font-size: 0.75rem;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .video-card .order {
+      font-size: 0.7rem;
+      color: #0077aa;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .video-card .remove-btn {
+      display: block;
+      width: 100%;
+      padding: 5px;
+      background: rgba(200,0,0,0.08);
+      border: none;
+      color: #cc2200;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .video-card .remove-btn:hover { background: rgba(200,0,0,0.18); }
+
+    .thumb-wrap { position: relative; }
+
+    .card-loading .spinner-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.7);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .spinner {
+      width: 26px;
+      height: 26px;
+      border: 3px solid rgba(0,0,0,0.1);
+      border-top-color: #0099bb;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    .spinner-label {
+      font-size: 0.62rem;
+      color: #444;
+      letter-spacing: 0.4px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .hint {
+      text-align: center;
+      font-size: 0.78rem;
+      color: #666;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="gradient"></canvas>
+
+<div class="container">
+  <div class="hero">
+    <div class="hero-badge">✦ 100% Free &nbsp;·&nbsp; No Watermark &nbsp;·&nbsp; iPhone Ready</div>
+    <h1>🎬 Video Merger</h1>
+    <p class="subtitle">Merge up to 100 videos — free, fast &amp; iPhone 6 compatible</p>
+  </div>
+
+  <div class="upload-zone" id="uploadZone">
+    <p>Drag & drop videos here or <span onclick="document.getElementById('fileInput').click()">browse files</span></p>
+    <p style="margin-top:8px;font-size:0.8rem;color:#888;">MP4, MOV, AVI · up to 100 files</p>
+    <input type="file" id="fileInput" accept="video/*" multiple />
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="uploadBtn" disabled>
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M16 8l-4-4-4 4M12 4v12"/></svg>
+      Upload Videos
+    </button>
+    <button class="btn btn-merge" id="mergeBtn" disabled>
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      Merge Videos
+    </button>
+    <button class="btn btn-success" id="downloadBtn" style="display:none">
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M8 12l4 4 4-4M12 4v12"/></svg>
+      Download Merged Video
+    </button>
+  </div>
+
+  <div id="status"></div>
+
+  <!-- Upload progress -->
+  <div class="progress-wrap" id="uploadProgress">
+    <div class="progress-label">
+      <span id="uploadProgressText">Uploading…</span>
+      <span id="uploadProgressPct">0%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="uploadProgressFill"></div>
+    </div>
+  </div>
+
+  <!-- Merge progress -->
+  <div class="progress-wrap" id="mergeProgress">
+    <div class="progress-label">
+      <span id="mergeProgressText">Merging…</span>
+      <span id="mergeProgressPct">0%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="mergeProgressFill"></div>
+    </div>
+  </div>
+
+  <div class="video-list" id="videoList"></div>
+  <p class="hint" id="hint" style="display:none">Drag cards to reorder · click ✕ to remove</p>
+</div>
+
+<script>
+  const gradient = new NeatGradient({
+    ref: document.getElementById("gradient"),
+    colors: [
+      { color: '#FFFFFF', enabled: true },
+      { color: '#EFE2CE', enabled: true },
+      { color: '#D5ECEB', enabled: true },
+      { color: '#E4E4E4', enabled: true },
+      { color: '#F6FFFF', enabled: true },
+    ],
+    speed: 2, horizontalPressure: 4, verticalPressure: 5,
+    waveFrequencyX: 4, waveFrequencyY: 3, waveAmplitude: 2,
+    shadows: 4, highlights: 7, colorBrightness: 1, colorSaturation: 0,
+    wireframe: false, colorBlending: 7,
+    backgroundColor: '#00A2FF', backgroundAlpha: 1,
+    grainScale: 100, grainSparsity: 0, grainIntensity: 0.05, grainSpeed: 0.3,
+    resolution: 0.5,
+    yOffset: 57, yOffsetWaveMultiplier: 1.5, yOffsetColorMultiplier: 1.8, yOffsetFlowMultiplier: 2,
+    flowDistortionA: 0.4, flowDistortionB: 3, flowScale: 3.3, flowEase: 0.53, flowEnabled: true,
+    enableProceduralTexture: false,
+    textureVoidLikelihood: 0.06, textureVoidWidthMin: 10, textureVoidWidthMax: 500,
+    textureBandDensity: 0.8, textureColorBlending: 0.06, textureSeed: 333, textureEase: 0.75,
+    proceduralBackgroundColor: '#003FFF',
+    textureShapeTriangles: 20, textureShapeCircles: 15, textureShapeBars: 15, textureShapeSquiggles: 10,
+    domainWarpEnabled: false, domainWarpIntensity: 0, domainWarpScale: 3,
+    vignetteIntensity: 0, vignetteRadius: 0.8,
+    fresnelEnabled: false, fresnelPower: 2, fresnelIntensity: 0.5, fresnelColor: '#FFFFFF',
+    iridescenceEnabled: false, iridescenceIntensity: 0.5, iridescenceSpeed: 1,
+    bloomIntensity: 0, bloomThreshold: 0.7, chromaticAberration: 0,
+  });
+
+  window.addEventListener("scroll", () => { gradient.yOffset = window.scrollY; });
+
+  const API = "";
+  let pendingFiles = [];
+  let uploadedFiles = [];
+  let downloadId = null;
+  let dragSrc = null;
+  let mergeTimer = null;
+
+  const fileInput = document.getElementById("fileInput");
+  const uploadZone = document.getElementById("uploadZone");
+  const uploadBtn = document.getElementById("uploadBtn");
+  const mergeBtn = document.getElementById("mergeBtn");
+  const downloadBtn = document.getElementById("downloadBtn");
+  const videoList = document.getElementById("videoList");
+  const statusEl = document.getElementById("status");
+  const hint = document.getElementById("hint");
+
+  const uploadProgress = document.getElementById("uploadProgress");
+  const uploadProgressFill = document.getElementById("uploadProgressFill");
+  const uploadProgressPct = document.getElementById("uploadProgressPct");
+  const uploadProgressText = document.getElementById("uploadProgressText");
+
+  const mergeProgress = document.getElementById("mergeProgress");
+  const mergeProgressFill = document.getElementById("mergeProgressFill");
+  const mergeProgressPct = document.getElementById("mergeProgressPct");
+  const mergeProgressText = document.getElementById("mergeProgressText");
+
+  function setStatus(msg, type = "") { statusEl.textContent = msg; statusEl.className = type; }
+
+  function setUploadProgress(current, total, filename) {
+    uploadProgress.style.display = "block";
+    const pct = Math.round((current / total) * 100);
+    uploadProgressFill.style.width = pct + "%";
+    uploadProgressPct.textContent = pct + "%";
+    uploadProgressText.textContent = `Uploading ${current} of ${total}: ${filename}`;
+  }
+
+  function finishUploadProgress(success, count) {
+    uploadProgressFill.style.width = "100%";
+    uploadProgressPct.textContent = "100%";
+    uploadProgressText.textContent = success ? `${count} video(s) uploaded!` : "Upload finished with errors.";
+    uploadProgressFill.style.background = success
+      ? "linear-gradient(90deg, #0099bb, #006688)"
+      : "linear-gradient(90deg, #cc4400, #992200)";
+    setTimeout(() => { uploadProgress.style.display = "none"; }, 3000);
+  }
+
+  function startMergeProgress() {
+    mergeProgress.style.display = "block";
+    mergeProgressFill.style.background = "linear-gradient(90deg, #0099bb, #006688)";
+    let pct = 0;
+    mergeProgressFill.style.width = "0%";
+    mergeProgressPct.textContent = "0%";
+    mergeProgressText.textContent = "Merging\u2026";
+    mergeTimer = setInterval(() => {
+      const step = pct < 30 ? 3 : pct < 60 ? 1.5 : pct < 85 ? 0.5 : 0.1;
+      pct = Math.min(pct + step, 90);
+      mergeProgressFill.style.width = pct + "%";
+      mergeProgressPct.textContent = Math.round(pct) + "%";
+    }, 300);
+  }
+
+  function finishMergeProgress(success) {
+    clearInterval(mergeTimer);
+    mergeProgressFill.style.width = "100%";
+    mergeProgressPct.textContent = "100%";
+    mergeProgressText.textContent = success ? "Merge complete!" : "Merge failed.";
+    mergeProgressFill.style.background = success
+      ? "linear-gradient(90deg, #0099bb, #006688)"
+      : "linear-gradient(90deg, #cc4400, #992200)";
+    if (success) setTimeout(() => { mergeProgress.style.display = "none"; }, 3000);
+  }
+
+  // --- File Selection ---
+  fileInput.addEventListener("change", () => handleFiles(Array.from(fileInput.files)));
+  uploadZone.addEventListener("dragover", e => { e.preventDefault(); uploadZone.classList.add("drag-over"); });
+  uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("drag-over"));
+  uploadZone.addEventListener("drop", e => {
+    e.preventDefault();
+    uploadZone.classList.remove("drag-over");
+    handleFiles(Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("video/")));
+  });
+
+  function handleFiles(files) {
+    if (!files.length) return;
+    if (pendingFiles.length + uploadedFiles.length + files.length > 100) {
+      setStatus("Maximum 100 files allowed.", "error"); return;
+    }
+    pendingFiles.push(...files);
+    renderPending();
+    uploadBtn.disabled = false;
+    setStatus(`${pendingFiles.length} file(s) ready to upload.`);
+  }
+
+  function renderPending() {
+    videoList.innerHTML = "";
+    const all = [
+      ...uploadedFiles.map(f => ({ ...f, uploaded: true })),
+      ...pendingFiles.map((f, i) => ({ id: "pending_" + i, name: f.name, thumb: null, uploaded: false }))
+    ];
+    all.forEach((f, idx) => renderCard(f, idx, all.length));
+    hint.style.display = all.length ? "block" : "none";
+  }
+
+  function renderCard(f, idx, total) {
+    const card = document.createElement("div");
+    card.className = "video-card" + (f.loading ? " card-loading" : "");
+    card.draggable = !f.loading;
+    card.dataset.id = f.id;
+
+    const blank = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 9%22><rect fill=%22%23ddd%22 width=%2216%22 height=%229%22/></svg>';
+    card.innerHTML = `
+      <div class="thumb-wrap">
+        <img src="${f.thumb || blank}" alt="${f.name}" />
+        ${f.loading ? `<div class="spinner-overlay"><div class="spinner"></div><span class="spinner-label">Uploading\u2026</span></div>` : ''}
+      </div>
+      <div class="info">
+        <div class="order">#${idx + 1} of ${total}</div>
+        <div class="name">${f.name}</div>
+      </div>
+      ${f.loading ? '' : '<button class="remove-btn">\u2715 Remove</button>'}
+    `;
+
+    if (!f.loading) card.querySelector(".remove-btn").addEventListener("click", () => removeFile(f.id, f.uploaded));
+
+    card.addEventListener("dragstart", () => { dragSrc = card; card.classList.add("dragging"); });
+    card.addEventListener("dragend", () => card.classList.remove("dragging"));
+    card.addEventListener("dragover", e => { e.preventDefault(); card.classList.add("drag-target"); });
+    card.addEventListener("dragleave", () => card.classList.remove("drag-target"));
+    card.addEventListener("drop", e => {
+      e.preventDefault();
+      card.classList.remove("drag-target");
+      if (dragSrc && dragSrc !== card) reorderCards(dragSrc.dataset.id, card.dataset.id);
+    });
+
+    videoList.appendChild(card);
+  }
+
+  function reorderCards(srcId, targetId) {
+    const allIds = [...uploadedFiles.map(f => f.id), ...pendingFiles.map((_, i) => "pending_" + i)];
+    const si = allIds.indexOf(srcId), ti = allIds.indexOf(targetId);
+    if (si === -1 || ti === -1) return;
+    allIds.splice(ti, 0, allIds.splice(si, 1)[0]);
+    const newUploaded = [], newPending = [];
+    allIds.forEach(id => {
+      const u = uploadedFiles.find(f => f.id === id);
+      if (u) { newUploaded.push(u); return; }
+      const pi = parseInt(id.replace("pending_", ""));
+      if (!isNaN(pi)) newPending.push(pendingFiles[pi]);
+    });
+    uploadedFiles = newUploaded;
+    pendingFiles = newPending;
+    renderPending();
+  }
+
+  function removeFile(id, uploaded) {
+    if (uploaded) uploadedFiles = uploadedFiles.filter(f => f.id !== id);
+    else { const pi = parseInt(id.replace("pending_", "")); pendingFiles.splice(pi, 1); }
+    renderPending();
+    mergeBtn.disabled = uploadedFiles.length < 2;
+    uploadBtn.disabled = pendingFiles.length === 0;
+    if (!uploadedFiles.length && !pendingFiles.length) setStatus("");
+  }
+
+  function renderLoadingState() {
+    videoList.innerHTML = "";
+    const all = [
+      ...uploadedFiles.map(f => ({ ...f, uploaded: true, loading: false })),
+      ...pendingFiles.map(f => ({ ...f, uploaded: false }))
+    ];
+    all.forEach((f, idx) => renderCard(f, idx, all.length));
+    hint.style.display = all.length ? "block" : "none";
+  }
+
+  // --- Upload ---
+  uploadBtn.addEventListener("click", async () => {
+    if (!pendingFiles.length) return;
+    uploadBtn.disabled = true;
+    mergeBtn.disabled = true;
+
+    const toUpload = [...pendingFiles];
+    pendingFiles = toUpload.map((f, i) => ({ id: "pending_" + i, name: f.name, thumb: null, uploaded: false, loading: true, _file: f }));
+    renderLoadingState();
+
+    let failed = 0;
+    for (let i = 0; i < toUpload.length; i++) {
+      const f = toUpload[i];
+      setUploadProgress(i + 1, toUpload.length, f.name);
+      const form = new FormData();
+      form.append("videos", f);
+      try {
+        const res = await fetch(`${API}/upload`, { method: "POST", body: form });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        uploadedFiles.push(...data.files);
+      } catch (e) {
+        failed++;
+        setStatus(`Error on "${f.name}": ${e.message}`, "error");
+      }
+      pendingFiles = pendingFiles.filter(p => p._file !== f);
+      renderLoadingState();
+    }
+
+    pendingFiles = [];
+    renderPending();
+    mergeBtn.disabled = uploadedFiles.length < 2;
+    finishUploadProgress(failed === 0, uploadedFiles.length);
+    if (failed === 0) setStatus(`${uploadedFiles.length} video(s) uploaded. Reorder if needed, then merge.`, "success");
+  });
+
+  // --- Merge ---
+  mergeBtn.addEventListener("click", async () => {
+    if (uploadedFiles.length < 2) return;
+    mergeBtn.disabled = true;
+    downloadBtn.style.display = "none";
+    setStatus("Merging videos\u2026 this may take a moment.");
+    startMergeProgress();
+    try {
+      const res = await fetch(`${API}/merge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: uploadedFiles.map(f => f.id) })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      downloadId = data.download_id;
+      finishMergeProgress(true);
+      downloadBtn.style.display = "inline-block";
+      setStatus("Merge complete! Your video is ready.", "success");
+    } catch (e) {
+      finishMergeProgress(false);
+      setStatus("Merge failed: " + e.message, "error");
+    }
+    mergeBtn.disabled = false;
+  });
+
+  // --- Download ---
+  downloadBtn.addEventListener("click", () => {
+    if (downloadId) window.location.href = `${API}/download/${downloadId}`;
+  });
+</script>
+</body>
+</html>
