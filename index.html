@@ -6,7 +6,7 @@
   <title>Video Merger</title>
   <script src="/neat.umd.js"></script>
   <script>const NeatGradient = window.neat ? window.neat.NeatGradient : null;</script>
-  <script src="/mp4-joiner.js?v=20260517-iphone-memory-fix"></script>
+  <script src="/mp4-joiner.js?v=20260517-iphone-download-fix"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a2e; overflow-x: hidden; background: #d5eceb; }
@@ -130,6 +130,7 @@
 
   let files = [];
   let outputUrl = null;
+  let outputBlob = null;
   let dragSrc = null;
 
   const fileInput       = document.getElementById("fileInput");
@@ -234,11 +235,13 @@
     mergeBtn.disabled = true;
     downloadBtn.style.display = "none";
     outputUrl = null;
+    outputBlob = null;
 
     try {
       mergeProgressFill.style.background = "linear-gradient(90deg, #0099bb, #006688)";
       setProgress(5, "Checking MP4/MOV files...");
       var blob = await LightweightMp4Joiner.merge(files, setProgress);
+      outputBlob = blob;
       outputUrl = URL.createObjectURL(blob);
 
       setProgress(100, "Merge complete!");
@@ -258,12 +261,40 @@
   });
 
   // --- Download ---
-  downloadBtn.addEventListener("click", function() {
-    if (!outputUrl) return;
+  downloadBtn.addEventListener("click", async function() {
+    if (!outputBlob && !outputUrl) return;
+    downloadBtn.disabled = true;
+
+    if (lowMemoryDevice && outputBlob) {
+      setStatus("Preparing iPhone download...");
+      try {
+        var solidBuffer = await new Response(outputBlob).arrayBuffer();
+        if (outputUrl) URL.revokeObjectURL(outputUrl);
+        outputBlob = new Blob([solidBuffer], { type: "video/mp4" });
+        outputUrl = URL.createObjectURL(outputBlob);
+      } catch(e) {
+        setStatus("Safari could not prepare the download. Try merging fewer or shorter clips.", "error");
+        downloadBtn.disabled = false;
+        return;
+      }
+    }
+
     var a = document.createElement("a");
     a.href = outputUrl;
     a.download = "merged_video.mp4";
+    a.target = "_blank";
+    a.rel = "noopener";
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
+
+    if (lowMemoryDevice) {
+      setTimeout(function() {
+        window.location.href = outputUrl;
+      }, 250);
+    }
+
+    downloadBtn.disabled = false;
   });
 </script>
 </body>
