@@ -15,7 +15,7 @@ THUMB_FOLDER = "thumbnails"
 for folder in [UPLOAD_FOLDER, OUTPUT_FOLDER, THUMB_FOLDER]:
     os.makedirs(folder, exist_ok=True)
 
-FFMPEG = r"C:\Users\obrer\Downloads\ffmpeg-8.1.1-essentials_build\ffmpeg-8.1.1-essentials_build\bin\ffmpeg.exe"
+FFMPEG = os.environ.get("FFMPEG_PATH", "ffmpeg")
 
 MAX_FILES = 100
 
@@ -145,4 +145,5 @@ def index():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
