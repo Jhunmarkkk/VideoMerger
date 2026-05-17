@@ -505,9 +505,9 @@
       await ffmpeg.writeFile("list.txt", listContent);
 
       // Track ffmpeg progress
-      ffmpeg.on("progress", ({ progress }) => { if (progress > 0 && progress <= 1) { setProgress(30 + progress * 65, "Merging videos\u2026"); } });
+      
 
-      setProgress(30, "Merging videos…");
+      setProgress(30, "Merging videos\u2026"); let crawlPct = 30; const crawlTimer = setInterval(() => { const step = crawlPct < 50 ? 1.5 : crawlPct < 70 ? 0.8 : crawlPct < 85 ? 0.3 : 0.05; crawlPct = Math.min(crawlPct + step, 92); setProgress(crawlPct, "Merging videos\u2026"); }, 400);
 
       // Re-encode to H.264 baseline for iPhone 6 compatibility
       await ffmpeg.exec([
@@ -519,7 +519,7 @@
         "output.mp4"
       ]);
 
-      setProgress(98, "Preparing download…");
+      clearInterval(crawlTimer); setProgress(98, "Preparing download\u2026");
 
       const data = await ffmpeg.readFile("output.mp4");
       const blob = new Blob([data.buffer], { type: "video/mp4" });
@@ -541,7 +541,7 @@
       setStatus("Merge complete! Click Download to save your video.", "success");
 
     } catch (e) {
-      setProgress(100, "Merge failed.");
+      clearInterval(crawlTimer); setProgress(100, "Merge failed.");
       mergeProgressFill.style.background = "linear-gradient(90deg, #cc4400, #992200)";
       setStatus("Merge failed: " + e.message, "error");
       console.error(e);
