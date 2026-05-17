@@ -6,7 +6,7 @@
   <title>Video Merger</title>
   <script src="/neat.umd.js"></script>
   <script>const NeatGradient = window.neat ? window.neat.NeatGradient : null;</script>
-  <script src="/mp4-joiner.js?v=20260517-playback-offset-fix"></script>
+  <script src="/mp4-joiner.js?v=20260517-mdat-first-mov-fix"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a2e; overflow-x: hidden; background: #d5eceb; }
@@ -131,6 +131,7 @@
   let files = [];
   let outputUrl = null;
   let outputBlob = null;
+  let outputName = "merged_video.mp4";
   let dragSrc = null;
 
   const fileInput       = document.getElementById("fileInput");
@@ -236,6 +237,7 @@
     downloadBtn.style.display = "none";
     outputUrl = null;
     outputBlob = null;
+    outputName = files.some(function(entry) { return /\.mov$/i.test(entry.name); }) ? "merged_video.mov" : "merged_video.mp4";
 
     try {
       mergeProgressFill.style.background = "linear-gradient(90deg, #0099bb, #006688)";
@@ -270,7 +272,7 @@
       try {
         var solidBuffer = await new Response(outputBlob).arrayBuffer();
         if (outputUrl) URL.revokeObjectURL(outputUrl);
-        outputBlob = new Blob([solidBuffer], { type: "video/mp4" });
+        outputBlob = new Blob([solidBuffer], { type: outputBlob.type || "video/mp4" });
         outputUrl = URL.createObjectURL(outputBlob);
       } catch(e) {
         setStatus("Safari could not prepare the download. Try merging fewer or shorter clips.", "error");
@@ -281,7 +283,7 @@
 
     var a = document.createElement("a");
     a.href = outputUrl;
-    a.download = "merged_video.mp4";
+    a.download = outputName;
     a.target = "_blank";
     a.rel = "noopener";
     document.body.appendChild(a);

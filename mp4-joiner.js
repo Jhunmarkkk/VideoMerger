@@ -507,19 +507,12 @@
 
     onProgress(48, "Building MP4 tables...");
     var finalMoov = buildMoov(parsed, 0, fileDataStarts);
-    for (var pass = 0; pass < 4; pass++) {
-      var nextMoov = buildMoov(parsed, finalMoov.length, fileDataStarts);
-      if (nextMoov.length === finalMoov.length) {
-        finalMoov = nextMoov;
-        break;
-      }
-      finalMoov = nextMoov;
-    }
     var mdatPayloads = parsed.map(function (file) { return file.mdatBlob; });
     var mdatHeader = makeMdatHeader(mdatPayloads);
 
     onProgress(84, "Preparing download...");
-    return new Blob([ftyp, finalMoov, mdatHeader].concat(mdatPayloads), { type: "video/mp4" });
+    var outputType = /\.mov$/i.test(fileEntries[0].file.name) ? "video/quicktime" : "video/mp4";
+    return new Blob([ftyp, mdatHeader].concat(mdatPayloads, [finalMoov]), { type: outputType });
   }
 
   window.LightweightMp4Joiner = { merge: mergeMp4Files };
