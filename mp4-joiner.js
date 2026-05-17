@@ -231,6 +231,7 @@
     var offset = header.length + 4;
     offsets.forEach(function (value) {
       if (value > 4294967295) err("Merged file is too large for this lightweight MP4/MOV joiner.");
+      if (value < 0) err("Invalid merged media offset.");
       view.setUint32(offset, value);
       offset += 4;
     });
@@ -505,8 +506,15 @@
     });
 
     onProgress(48, "Building MP4 tables...");
-    var moov = buildMoov(parsed, 0, fileDataStarts);
-    var finalMoov = buildMoov(parsed, moov.length, fileDataStarts);
+    var finalMoov = buildMoov(parsed, 0, fileDataStarts);
+    for (var pass = 0; pass < 4; pass++) {
+      var nextMoov = buildMoov(parsed, finalMoov.length, fileDataStarts);
+      if (nextMoov.length === finalMoov.length) {
+        finalMoov = nextMoov;
+        break;
+      }
+      finalMoov = nextMoov;
+    }
     var mdatPayloads = parsed.map(function (file) { return file.mdatBlob; });
     var mdatHeader = makeMdatHeader(mdatPayloads);
 
