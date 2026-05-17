@@ -291,11 +291,13 @@
       stsc: readEntryTable(bytes, stsc, ["first_chunk", "samples_per_chunk", "sample_description_index"]),
       stsz: readStsz(bytes, stsz),
       stco: readStco(bytes, stco),
-      stss: readStss(bytes, findChild(bytes, stbl, "stss"))
+      stss: readStss(bytes, findChild(bytes, stbl, "stss")),
+      timescale: readTimescale(new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength), findPath(bytes, trak, ["mdia", "mdhd"]))
     };
   }
 
-  function parseFile(buffer, name) {
+  function parseFile(buffer, file) {
+    var name = file.name;
     var bytes = new Uint8Array(buffer);
     var top = parseBoxes(bytes);
     var ftyp = top.filter(function (box) { return box.type === "ftyp"; })[0];
@@ -311,10 +313,16 @@
       moov: moov,
       mdat: mdat,
       mdatDataStart: mdat.start + mdat.header,
-      mdatPayload: bytes.subarray(mdat.start + mdat.header, mdat.end),
+      mdatPayloadLength: mdat.end - (mdat.start + mdat.header),
+      mdatBlob: file.slice(mdat.start + mdat.header, mdat.end),
       mvhd: findChild(bytes, moov, "mvhd"),
       tracks: traks.map(function (trak) { return parseTrack(bytes, trak); })
     };
+  }
+
+  function releaseFileBytes(file) {
+    if (file.keepBytes) return;
+    file.bytes = null;
   }
 
   function compatible(files) {
@@ -352,8 +360,7 @@
 
     files.forEach(function (file, fileIndex) {
       var track = file.tracks[trackIndex];
-      var fileView = new DataView(file.bytes.buffer, file.bytes.byteOffset, file.bytes.byteLength);
-      var sourceTimescale = readTimescale(fileView, track.mdhd);
+      var sourceTimescale = track.timescale;
       var scaledStts = scaleRunTable(track.stts, "sample_delta", sourceTimescale, targetTimescale);
       sttsTables.push(scaledStts);
       if (firstTrack.ctts) {
@@ -412,13 +419,11 @@
     var mdhd = findPath(trakCopy, trakBox, ["mdia", "mdhd"]);
     var tkhd = findChild(trakCopy, trakBox, "tkhd");
     var mediaDuration = files.reduce(function (sum, file) {
-      var fileView = new DataView(file.bytes.buffer, file.bytes.byteOffset, file.bytes.byteLength);
-      var sourceTimescale = readTimescale(fileView, file.tracks[trackIndex].mdhd);
+      var sourceTimescale = file.tracks[trackIndex].timescale;
       return sum + scaleValue(durationFromStts(file.tracks[trackIndex].stts), sourceTimescale, targetTimescale);
     }, 0);
     var movieDuration = files.reduce(function (sum, file) {
-      var fileView = new DataView(file.bytes.buffer, file.bytes.byteOffset, file.bytes.byteLength);
-      var timescale = readTimescale(fileView, file.tracks[trackIndex].mdhd);
+      var timescale = file.tracks[trackIndex].timescale;
       return sum + durationFromStts(file.tracks[trackIndex].stts) * movieTimescale / timescale;
     }, 0);
     writeDuration(view, mdhd, mediaDuration);
@@ -442,8 +447,7 @@
     first.tracks.forEach(function (_track, index) {
       var total = 0;
       files.forEach(function (file) {
-        var view = new DataView(file.bytes.buffer, file.bytes.byteOffset, file.bytes.byteLength);
-        var timescale = readTimescale(view, file.tracks[index].mdhd);
+        var timescale = file.tracks[index].timescale;
         total += durationFromStts(file.tracks[index].stts) * movieTimescale / timescale;
       });
       maxDuration = Math.max(maxDuration, Math.round(total));
@@ -452,14 +456,14 @@
     return moov;
   }
 
-  function makeMdat(payloads) {
-    var size = 8 + payloads.reduce(function (sum, chunk) { return sum + chunk.length; }, 0);
+  function makeMdatHeader(payloads) {
+    var size = 8 + payloads.reduce(function (sum, chunk) { return sum + chunk.size; }, 0);
     if (size > 4294967295) err("Merged video is too large for this lightweight joiner.");
     var header = new Uint8Array(8);
     var view = new DataView(header.buffer);
     view.setUint32(0, size);
     writeType(view, 4, "mdat");
-    return concatArrays([header].concat(payloads));
+    return header;
   }
 
   function readFileBuffer(file) {
@@ -471,6 +475,12 @@
     });
   }
 
+  function pauseForMemory() {
+    return new Promise(function (resolve) {
+      setTimeout(resolve, 80);
+    });
+  }
+
   async function mergeMp4Files(fileEntries, onProgress) {
     if (!fileEntries.length) err("No files selected.");
     var parsed = [];
@@ -478,7 +488,11 @@
       var file = fileEntries[i].file;
       if (!/\.(mp4|mov)$/i.test(file.name)) err("Lightweight mode only supports .mp4 and .mov files.");
       onProgress(8 + i / fileEntries.length * 32, "Reading " + (i + 1) + " of " + fileEntries.length + "...");
-      parsed.push(parseFile(await readFileBuffer(file), file.name));
+      var parsedFile = parseFile(await readFileBuffer(file), file);
+      parsedFile.keepBytes = i === 0;
+      parsed.push(parsedFile);
+      releaseFileBytes(parsedFile);
+      await pauseForMemory();
     }
     compatible(parsed);
 
@@ -487,16 +501,17 @@
     var cursor = ftyp.length + 8;
     parsed.forEach(function (file) {
       fileDataStarts.push(cursor);
-      cursor += file.mdatPayload.length;
+      cursor += file.mdatPayloadLength;
     });
 
     onProgress(48, "Building MP4 tables...");
     var moov = buildMoov(parsed, 0, fileDataStarts);
     var finalMoov = buildMoov(parsed, moov.length, fileDataStarts);
-    var mdat = makeMdat(parsed.map(function (file) { return file.mdatPayload; }));
+    var mdatPayloads = parsed.map(function (file) { return file.mdatBlob; });
+    var mdatHeader = makeMdatHeader(mdatPayloads);
 
     onProgress(84, "Preparing download...");
-    return new Blob([ftyp, finalMoov, mdat], { type: "video/mp4" });
+    return new Blob([ftyp, finalMoov, mdatHeader].concat(mdatPayloads), { type: "video/mp4" });
   }
 
   window.LightweightMp4Joiner = { merge: mergeMp4Files };

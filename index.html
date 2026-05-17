@@ -6,7 +6,7 @@
   <title>Video Merger</title>
   <script src="/neat.umd.js"></script>
   <script>const NeatGradient = window.neat ? window.neat.NeatGradient : null;</script>
-  <script src="/mp4-joiner.js?v=20260517-timescale-fix"></script>
+  <script src="/mp4-joiner.js?v=20260517-iphone-memory-fix"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a2e; overflow-x: hidden; background: #d5eceb; }
@@ -100,7 +100,8 @@
 <script>
   // NeatGradient
   try {
-    if (NeatGradient) {
+    var lowMemoryDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent || "");
+    if (NeatGradient && !lowMemoryDevice) {
       const gradient = new NeatGradient({
         ref: document.getElementById("gradient"),
         colors: [
@@ -159,11 +160,6 @@
   const engineStatus = document.getElementById("engineStatus");
   if (engineStatus) setTimeout(function() { engineStatus.style.display = "none"; }, 3000);
 
-  function isLowMemoryIOS() {
-    var ua = navigator.userAgent || "";
-    return /iPhone|iPad|iPod/i.test(ua);
-  }
-
   function getFileExt(name) {
     var match = /\.([^.]+)$/.exec(name || "");
     return match ? match[1].toUpperCase() : "VIDEO";
@@ -189,8 +185,8 @@
     });
     renderList();
     mergeBtn.disabled = files.length < 2;
-    if (isLowMemoryIOS()) {
-      setStatus(files.length + " video(s) selected. Previews are disabled on iPhone to avoid Safari reloads.");
+    if (lowMemoryDevice) {
+      setStatus(files.length + " video(s) selected. Previews and animation are disabled on iPhone to avoid Safari reloads.");
     } else {
       setStatus(files.length + " video(s) selected. Reorder if needed, then merge.");
     }
