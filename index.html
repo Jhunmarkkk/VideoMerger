@@ -6,7 +6,7 @@
   <title>Video Merger</title>
   <script src="/neat.umd.js"></script>
   <script>const NeatGradient = window.neat ? window.neat.NeatGradient : null;</script>
-  <script src="/ffmpeg-core/ffmpeg.js"></script>
+  <script src="/ffmpeg-core/ffmpeg.js?v=20260517-ffmpeg-loader-fix"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a2e; overflow-x: hidden; background: #d5eceb; }
@@ -130,7 +130,7 @@
   // --- FFmpeg 0.11.x setup (works on iPhone 6 Safari) ---
   const { createFFmpeg, fetchFile } = FFmpeg;
   const ffmpeg = createFFmpeg({
-    corePath: window.location.origin + '/ffmpeg-core/ffmpeg-core.js',
+    corePath: window.location.origin + '/ffmpeg-core/ffmpeg-core.js?v=20260517-ffmpeg-loader-fix',
     log: true,
   });
 
