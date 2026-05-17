@@ -509,15 +509,24 @@
 
       setProgress(30, "Merging videos\u2026"); let crawlPct = 30; const crawlTimer = setInterval(() => { const step = crawlPct < 50 ? 1.5 : crawlPct < 70 ? 0.8 : crawlPct < 85 ? 0.3 : 0.05; crawlPct = Math.min(crawlPct + step, 92); setProgress(crawlPct, "Merging videos\u2026"); }, 400);
 
-      // Re-encode to H.264 baseline for iPhone 6 compatibility
-      await ffmpeg.exec([
-        "-f", "concat", "-safe", "0", "-i", "list.txt",
-        "-c:v", "libx264", "-profile:v", "baseline", "-level", "3.0",
-        "-c:a", "aac", "-ar", "44100", "-ac", "2",
-        "-movflags", "+faststart",
-        "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
-        "output.mp4"
-      ]);
+      // Try fast stream copy first, re-encode only if it fails
+      try {
+        await ffmpeg.exec([
+          "-f", "concat", "-safe", "0", "-i", "list.txt",
+          "-c", "copy", "-movflags", "+faststart",
+          "output.mp4"
+        ]);
+      } catch (e) {
+        setProgress(35, "Re-encoding for iPhone compatibility\u2026");
+        await ffmpeg.exec([
+          "-f", "concat", "-safe", "0", "-i", "list.txt",
+          "-c:v", "libx264", "-profile:v", "baseline", "-level", "3.0",
+          "-c:a", "aac", "-ar", "44100", "-ac", "2",
+          "-movflags", "+faststart",
+          "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
+          "output.mp4"
+        ]);
+      }
 
       clearInterval(crawlTimer); setProgress(98, "Preparing download\u2026");
 
