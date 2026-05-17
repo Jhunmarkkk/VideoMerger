@@ -73,53 +73,62 @@ def thumbnail(filename):
 
 @app.route("/merge", methods=["POST"])
 def merge():
-    data = request.json
-    ids = data.get("ids", [])
-    if not ids or len(ids) > MAX_FILES:
-        return jsonify({"error": "Invalid file list."}), 400
+    try:
+        data = request.json
+        ids = data.get("ids", [])
+        if not ids or len(ids) > MAX_FILES:
+            return jsonify({"error": "Invalid file list."}), 400
 
-    list_path = os.path.join(OUTPUT_FOLDER, str(uuid.uuid4()) + "_list.txt")
-    output_id = str(uuid.uuid4())
-    output_path = os.path.join(OUTPUT_FOLDER, output_id + ".mp4")
+        list_path = os.path.join(OUTPUT_FOLDER, str(uuid.uuid4()) + "_list.txt")
+        output_id = str(uuid.uuid4())
+        output_path = os.path.join(OUTPUT_FOLDER, output_id + ".mp4")
 
-    converted = []
-    for fid in ids:
-        matches = [f for f in os.listdir(UPLOAD_FOLDER) if f.startswith(fid)]
-        if not matches:
-            return jsonify({"error": f"File {fid} not found."}), 404
-        src = os.path.join(UPLOAD_FOLDER, matches[0])
-        conv_path = os.path.join(OUTPUT_FOLDER, fid + "_conv.mp4")
-        subprocess.run([
-            FFMPEG, "-y", "-i", src,
-            "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
-            "-c:v", "libx264", "-profile:v", "baseline", "-level", "3.0",
-            "-c:a", "aac", "-ar", "44100", "-ac", "2",
-            "-movflags", "+faststart",
-            conv_path
-        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        converted.append(conv_path)
+        converted = []
+        for fid in ids:
+            matches = [f for f in os.listdir(UPLOAD_FOLDER) if f.startswith(fid)]
+            if not matches:
+                return jsonify({"error": f"File {fid} not found."}), 404
+            src = os.path.join(UPLOAD_FOLDER, matches[0])
+            conv_path = os.path.join(OUTPUT_FOLDER, fid + "_conv.mp4")
+            result = subprocess.run([
+                FFMPEG, "-y", "-i", src,
+                "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
+                "-c:v", "libx264", "-profile:v", "baseline", "-level", "3.0",
+                "-c:a", "aac", "-ar", "44100", "-ac", "2",
+                "-movflags", "+faststart",
+                conv_path
+            ], capture_output=True, text=True)
+            if result.returncode != 0:
+                return jsonify({"error": f"FFmpeg encode failed: {result.stderr[-300:]}"}), 500
+            converted.append(conv_path)
 
-    with open(list_path, "w") as lf:
+        with open(list_path, "w") as lf:
+            for cp in converted:
+                lf.write(f"file '{os.path.abspath(cp)}'\n")
+
+        result = subprocess.run([
+            FFMPEG, "-y", "-f", "concat", "-safe", "0",
+            "-i", list_path, "-c", "copy", output_path
+        ], capture_output=True, text=True)
+
+        os.remove(list_path)
         for cp in converted:
-            lf.write(f"file '{os.path.abspath(cp)}'\n")
+            try:
+                os.remove(cp)
+            except Exception:
+                pass
 
-    subprocess.run([
-        FFMPEG, "-y", "-f", "concat", "-safe", "0",
-        "-i", list_path,
-        "-c", "copy", output_path
-    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if result.returncode != 0:
+            return jsonify({"error": f"FFmpeg concat failed: {result.stderr[-300:]}"}), 500
 
-    os.remove(list_path)
-    for cp in converted:
-        try:
-            os.remove(cp)
-        except Exception:
-            pass
+        if not os.path.exists(output_path):
+            return jsonify({"error": "Output file not created."}), 500
 
-    if not os.path.exists(output_path):
-        return jsonify({"error": "Merge failed."}), 500
-
-    return jsonify({"download_id": output_id})
+        return jsonify({"download_id": output_id})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/download/<download_id>")
