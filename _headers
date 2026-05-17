@@ -9,3 +9,6 @@
 /ffmpeg-core/*.wasm
   Content-Type: application/wasm
   Cache-Control: no-store
+
+/mp4-joiner.js
+  Cache-Control: no-store
