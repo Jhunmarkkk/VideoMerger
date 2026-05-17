@@ -6,7 +6,7 @@
   <title>Video Merger</title>
   <script src="/neat.umd.js"></script>
   <script>const NeatGradient = window.neat ? window.neat.NeatGradient : null;</script>
-  <script src="/mp4-joiner.js?v=20260517-lightweight-mp4"></script>
+  <script src="/mp4-joiner.js?v=20260517-lightweight-mp4-mov"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a2e; overflow-x: hidden; background: #d5eceb; }
@@ -60,14 +60,14 @@
   <div class="hero">
     <div class="hero-badge">&#10022; 100% Free &nbsp;&middot;&nbsp; No Watermark &nbsp;&middot;&nbsp; iPhone Ready</div>
     <h1>&#127916; Video Merger</h1>
-    <p class="subtitle">Merge compatible MP4 videos &mdash; free, fast &amp; iPhone 6 friendly</p>
-    <p class="engine-status" id="engineStatus">Lightweight MP4 mode ready</p>
+    <p class="subtitle">Merge compatible MP4 or MOV videos &mdash; free, fast &amp; iPhone 6 friendly</p>
+    <p class="engine-status" id="engineStatus">Lightweight MP4/MOV mode ready</p>
   </div>
 
   <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
     <p>Drag &amp; drop videos here or <span>browse files</span></p>
-    <p style="margin-top:8px;font-size:0.8rem;color:#888;">MP4 only &middot; clips should use the same camera/settings</p>
-    <input type="file" id="fileInput" accept="video/mp4,.mp4" multiple />
+    <p style="margin-top:8px;font-size:0.8rem;color:#888;">MP4 or MOV &middot; clips should use the same camera/settings</p>
+    <input type="file" id="fileInput" accept="video/mp4,video/quicktime,.mp4,.mov" multiple />
   </div>
 
   <div class="actions">
@@ -152,6 +152,10 @@
     mergeProgressText.textContent = text;
   }
 
+  function isSupportedVideoFile(file) {
+    return /\.(mp4|mov)$/i.test(file.name);
+  }
+
   const engineStatus = document.getElementById("engineStatus");
   if (engineStatus) setTimeout(function() { engineStatus.style.display = "none"; }, 3000);
 
@@ -162,14 +166,14 @@
   uploadZone.addEventListener("drop", function(e) {
     e.preventDefault();
     uploadZone.classList.remove("drag-over");
-    handleFiles(Array.from(e.dataTransfer.files).filter(function(f) { return /\.mp4$/i.test(f.name); }));
+    handleFiles(Array.from(e.dataTransfer.files).filter(isSupportedVideoFile));
   });
 
   function handleFiles(newFiles) {
     if (!newFiles.length) return;
     if (files.length + newFiles.length > 100) { setStatus("Maximum 100 files allowed.", "error"); return; }
-    newFiles = newFiles.filter(function(f) { return /\.mp4$/i.test(f.name); });
-    if (!newFiles.length) { setStatus("Lightweight mode only supports .mp4 files.", "error"); return; }
+    newFiles = newFiles.filter(isSupportedVideoFile);
+    if (!newFiles.length) { setStatus("Lightweight mode only supports .mp4 and .mov files.", "error"); return; }
     newFiles.forEach(function(f) {
       var url = URL.createObjectURL(f);
       var video = document.createElement("video");
@@ -236,7 +240,7 @@
 
     try {
       mergeProgressFill.style.background = "linear-gradient(90deg, #0099bb, #006688)";
-      setProgress(5, "Checking MP4 files...");
+      setProgress(5, "Checking MP4/MOV files...");
       var blob = await LightweightMp4Joiner.merge(files, setProgress);
       outputUrl = URL.createObjectURL(blob);
 

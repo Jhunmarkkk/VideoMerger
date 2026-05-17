@@ -69,7 +69,7 @@
       } else if (size === 0) {
         size = end - offset;
       }
-      if (size < header || offset + size > end) err("Invalid MP4 box layout.");
+      if (size < header || offset + size > end) err("Invalid MP4/MOV box layout.");
       boxes.push({ type: readType(view, offset + 4), start: offset, size: size, header: header, end: offset + size });
       offset += size;
     }
@@ -215,7 +215,7 @@
     view.setUint32(header.length, offsets.length);
     var offset = header.length + 4;
     offsets.forEach(function (value) {
-      if (value > 4294967295) err("Merged file is too large for this lightweight MP4 joiner.");
+      if (value > 4294967295) err("Merged file is too large for this lightweight MP4/MOV joiner.");
       view.setUint32(offset, value);
       offset += 4;
     });
@@ -253,12 +253,12 @@
 
   function parseTrack(bytes, trak) {
     var stbl = findPath(bytes, trak, ["mdia", "minf", "stbl"]);
-    if (!stbl) err("Unsupported MP4: missing sample table.");
+    if (!stbl) err("Unsupported MP4/MOV: missing sample table.");
     var stts = findChild(bytes, stbl, "stts");
     var stsc = findChild(bytes, stbl, "stsc");
     var stsz = findChild(bytes, stbl, "stsz");
     var stco = findChild(bytes, stbl, "stco") || findChild(bytes, stbl, "co64");
-    if (!stts || !stsc || !stsz || !stco) err("Unsupported MP4: missing timing or chunk table.");
+    if (!stts || !stsc || !stsz || !stco) err("Unsupported MP4/MOV: missing timing or chunk table.");
     return {
       trak: trak,
       handler: readHandler(bytes, trak),
@@ -286,7 +286,7 @@
     var ftyp = top.filter(function (box) { return box.type === "ftyp"; })[0];
     var moov = top.filter(function (box) { return box.type === "moov"; })[0];
     var mdats = top.filter(function (box) { return box.type === "mdat"; });
-    if (!ftyp || !moov || mdats.length !== 1) err(name + " is not a supported simple MP4.");
+    if (!ftyp || !moov || mdats.length !== 1) err(name + " is not a supported simple MP4/MOV file.");
     var mdat = mdats[0];
     var traks = children(bytes, moov).filter(function (box) { return box.type === "trak"; });
     return {
@@ -459,7 +459,7 @@
     var parsed = [];
     for (var i = 0; i < fileEntries.length; i++) {
       var file = fileEntries[i].file;
-      if (!/\.mp4$/i.test(file.name)) err("Lightweight mode only supports .mp4 files.");
+      if (!/\.(mp4|mov)$/i.test(file.name)) err("Lightweight mode only supports .mp4 and .mov files.");
       onProgress(8 + i / fileEntries.length * 32, "Reading " + (i + 1) + " of " + fileEntries.length + "...");
       parsed.push(parseFile(await readFileBuffer(file), file.name));
     }
