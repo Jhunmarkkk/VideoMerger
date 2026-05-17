@@ -115,6 +115,21 @@
     return view.getUint32(box.start + box.header + (version === 1 ? 16 : 8));
   }
 
+  function scaleValue(value, sourceTimescale, targetTimescale) {
+    if (sourceTimescale === targetTimescale) return value;
+    return Math.max(1, Math.round(value * targetTimescale / sourceTimescale));
+  }
+
+  function scaleRunTable(table, valueField, sourceTimescale, targetTimescale) {
+    return table.map(function (entry) {
+      var copy = {};
+      Object.keys(entry).forEach(function (key) {
+        copy[key] = key === valueField ? scaleValue(entry[key], sourceTimescale, targetTimescale) : entry[key];
+      });
+      return copy;
+    });
+  }
+
   function readHandler(bytes, trak) {
     var hdlr = findPath(bytes, trak, ["mdia", "hdlr"]);
     if (!hdlr) return "";
@@ -309,11 +324,6 @@
       file.tracks.forEach(function (track, index) {
         var other = base.tracks[index];
         if (track.handler !== other.handler) err(file.name + " has tracks in a different order.");
-        var viewA = new DataView(file.bytes.buffer, file.bytes.byteOffset, file.bytes.byteLength);
-        var viewB = new DataView(base.bytes.buffer, base.bytes.byteOffset, base.bytes.byteLength);
-        if (readTimescale(viewA, track.mdhd) !== readTimescale(viewB, other.mdhd)) {
-          err(file.name + " uses a different video/audio timescale.");
-        }
       });
     });
   }
@@ -337,13 +347,18 @@
     var sizes = [];
     var offsets = [];
     var syncSamples = firstTrack.stss ? [] : null;
+    var firstView = new DataView(files[0].bytes.buffer, files[0].bytes.byteOffset, files[0].bytes.byteLength);
+    var targetTimescale = readTimescale(firstView, firstTrack.mdhd);
 
     files.forEach(function (file, fileIndex) {
       var track = file.tracks[trackIndex];
-      sttsTables.push(track.stts);
+      var fileView = new DataView(file.bytes.buffer, file.bytes.byteOffset, file.bytes.byteLength);
+      var sourceTimescale = readTimescale(fileView, track.mdhd);
+      var scaledStts = scaleRunTable(track.stts, "sample_delta", sourceTimescale, targetTimescale);
+      sttsTables.push(scaledStts);
       if (firstTrack.ctts) {
         if (!track.ctts) err(file.name + " is missing composition timing.");
-        cttsTables.push(track.ctts);
+        cttsTables.push(scaleRunTable(track.ctts, "sample_offset", sourceTimescale, targetTimescale));
       }
       track.stsc.forEach(function (entry) {
         stscTables.push({
@@ -397,7 +412,9 @@
     var mdhd = findPath(trakCopy, trakBox, ["mdia", "mdhd"]);
     var tkhd = findChild(trakCopy, trakBox, "tkhd");
     var mediaDuration = files.reduce(function (sum, file) {
-      return sum + durationFromStts(file.tracks[trackIndex].stts);
+      var fileView = new DataView(file.bytes.buffer, file.bytes.byteOffset, file.bytes.byteLength);
+      var sourceTimescale = readTimescale(fileView, file.tracks[trackIndex].mdhd);
+      return sum + scaleValue(durationFromStts(file.tracks[trackIndex].stts), sourceTimescale, targetTimescale);
     }, 0);
     var movieDuration = files.reduce(function (sum, file) {
       var fileView = new DataView(file.bytes.buffer, file.bytes.byteOffset, file.bytes.byteLength);
