@@ -7,8 +7,8 @@
   <script src="/neat.umd.js"></script>
   <script>const NeatGradient = window.neat ? window.neat.NeatGradient : null;</script>
   <!-- FFmpeg.wasm -->
-  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.js"></script>
-  <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -290,10 +290,6 @@
   </div>
 
   <div class="actions">
-    <button class="btn btn-primary" id="addBtn">
-      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-      Add Videos
-    </button>
     <button class="btn btn-merge" id="mergeBtn" disabled>
       <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
       Merge Videos
@@ -362,7 +358,6 @@
 
   const fileInput   = document.getElementById("fileInput");
   const uploadZone  = document.getElementById("uploadZone");
-  const addBtn      = document.getElementById("addBtn");
   const mergeBtn    = document.getElementById("mergeBtn");
   const downloadBtn = document.getElementById("downloadBtn");
   const videoList   = document.getElementById("videoList");
@@ -386,7 +381,7 @@
   async function loadFFmpeg() {
     if (ffmpegLoaded) return;
     setStatus("Loading FFmpeg engine…");
-    const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
+    const baseURL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd";
     await ffmpeg.load({
       coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
       wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
@@ -399,7 +394,6 @@
   loadFFmpeg().catch(() => {});
 
   // --- File Selection ---
-  addBtn.addEventListener("click", () => fileInput.click());
   fileInput.addEventListener("change", () => handleFiles(Array.from(fileInput.files)));
   uploadZone.addEventListener("dragover", e => { e.preventDefault(); uploadZone.classList.add("drag-over"); });
   uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("drag-over"));
