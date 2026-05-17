@@ -382,10 +382,10 @@
   async function loadFFmpeg() {
     if (ffmpegLoaded) return;
     setStatus("Loading FFmpeg engine…");
-    const baseURL = window.location.origin + "/ffmpeg-core";
+    const localURL = window.location.origin + "/ffmpeg-core";
     await ffmpeg.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+      coreURL: await toBlobURL(`${localURL}/ffmpeg-core.js`, "text/javascript"),
+      wasmURL: await toBlobURL(`https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm`, "application/wasm"),
     });
     ffmpegLoaded = true;
     setStatus("");
